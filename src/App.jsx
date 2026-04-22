@@ -1,55 +1,34 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 
-const theme = {
-  primary: '#f39c12',
-  bgDriver: '#121212',
-  bgDriverCard: '#1e1e1e',
-  bgDispatcher: '#f0f2f5',
-  bgDispatcherCard: '#ffffff',
-  textDriver: '#ffffff',
-  textDriverMuted: '#aaaaaa',
-  textDispatcher: '#2c3e50',
-  textDispatcherMuted: '#7f8c8d',
-  border: '#dcdde1',
-}
+const theme = { primary: '#f39c12', bgD: '#121212', bgC: '#1e1e1e', text: '#fff' }
 
 function App() {
   const [auta, setAuta] = useState([])
   const [ridici, setRidici] = useState([])
   const [smeny, setSmeny] = useState([])
   const [zobrazeni, setZobrazeni] = useState('ridic')
-  const [vybraneJmenoRidice, setVybraneJmenoRidice] = useState('')
-  const [vybraneAutoId, setVybraneAutoId] = useState('')
-  const [zacatekSmeny, setZacatekSmeny] = useState('')
-  const [konecSmeny, setKonecSmeny] = useState('')
+  const [vybraneJmeno, setVybraneJmeno] = useState('')
+  const [vybraneAuto, setVybraneAuto] = useState('')
+  const [zacatek, setZacatek] = useState('')
+  const [konec, setKonec] = useState('')
   const [mojeJmeno, setMojeJmeno] = useState('')
 
-  useEffect(() => {
-    nactiVse()
-  }, [])
+  useEffect(() => { nactiData() }, [])
 
-  async function nactiVse() {
-    console.log("Startuji načítání dat...");
+  async function nactiData() {
+    // 1. Načtení aut
+    const { data: a } = await supabase.from('auta').select('*')
+    if (a) { setAuta(a); if (a.length > 0) setVybraneAuto(a[0].id); }
     
-    // Načtení aut
-    const { data: autaData, error: autaErr } = await supabase.from('auta').select('*')
-    if (autaErr) console.error("Chyba aut:", autaErr)
-    if (autaData) {
-      setAuta(autaData)
-      if (autaData.length > 0) setVybraneAutoId(autaData[0].id)
-    }
-
-    // Načtení řidičů
-    const { data: ridiciData, error: ridiciErr } = await supabase.from('ridici').select('*')
-    if (ridiciErr) {
-        console.error("CHYBA RIDICI:", ridiciErr)
-        alert("Nepodařilo se načíst řidiče: " + ridiciErr.message)
-    }
-    if (ridiciData) {
-      console.log("Načtení řidiči z DB:", ridiciData)
-      setRidici(ridiciData)
-      if (ridiciData.length > 0) setVybraneJmenoRidice(ridiciData[0].jmeno)
+    // 2. Načtení řidičů - zkusíme vypsat vše, co přijde
+    const { data: r } = await supabase.from('ridici').select('*')
+    console.log("Data řidičů z DB:", r); // Toto uvidíme v konzoli prohlížeče
+    
+    if (r && r.length > 0) {
+      setRidici(r)
+      // Nastavíme jako první vybrané jméno to, co najdeme v prvním řádku
+      setVybraneJmeno(r[0].jmeno || r[0].Jmeno || "Neznámý");
     }
 
     nactiSmeny()
@@ -57,72 +36,113 @@ function App() {
 
   async function nactiSmeny() {
     const ted = new Date().toISOString()
-    const { data, error } = await supabase
-      .from('smeny')
-      .select('*, auta(spz, typ_vozu)')
-      .gte('konec', ted)
-      .order('zacatek', { ascending: true })
-    if (error) console.error('Chyba směn:', error)
-    else setSmeny(data)
+    const { data: s } = await supabase.from('smeny').select('*, auta(spz)').gte('konec', ted).order('zacatek')
+    if (s) setSmeny(s)
   }
 
   async function ulozSmenu(e) {
     e.preventDefault()
+    if (!vybraneJmeno) return alert("Vyberte prosím řidiče!");
+    
     const { error } = await supabase.from('smeny').insert([{
-      jmeno_ridice: vybraneJmenoRidice, auto_id: vybraneAutoId, zacatek: zacatekSmeny, konec: konecSmeny, typ_smeny: 'Denní'
+      jmeno_ridice: vybraneJmeno, 
+      auto_id: vybraneAuto, 
+      zacatek: zacatek, 
+      konec: konec, 
+      typ_smeny: 'Denní'
     }])
-    if (error) alert('Chyba: ' + error.message)
-    else { alert('Uloženo!'); setZacatekSmeny(''); setKonecSmeny(''); nactiSmeny(); }
+    if (error) alert(error.message)
+    else { alert('Směna uložena!'); nactiSmeny(); }
   }
 
-  function prihlaseniDispecera() {
-    const heslo = window.prompt('Heslo:')
-    if (heslo === 'taxi123') setZobrazeni('dispecer')
-  }
+  function login() { if (window.prompt('Zadejte dispečerské heslo:') === 'taxi123') setZobrazeni('dispecer') }
 
-  const isRidic = zobrazeni === 'ridic';
-  const mojeNaplanovaneSmeny = smeny.filter(s => s.jmeno_ridice.toLowerCase().includes(mojeJmeno.toLowerCase()) && mojeJmeno.length > 2)
+  const mojeSmeny = smeny.filter(s => s.jmeno_ridice.toLowerCase().includes(mojeJmeno.toLowerCase()) && mojeJmeno.length > 2)
 
   return (
-    <div style={{ backgroundColor: isRidic ? theme.bgDriver : theme.bgDispatcher, minHeight: '100vh', padding: '15px', fontFamily: 'sans-serif' }}>
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: isRidic ? theme.bgDriverCard : theme.bgDispatcherCard, padding: '10px 20px', borderRadius: '15px' }}>
-        <h1 style={{ margin: 0, fontSize: '1.2em' }}>RB taxi <span style={{ color: theme.primary }}>Hodonín</span></h1>
+    <div style={{ backgroundColor: zobrazeni==='ridic'?theme.bgD:'#f0f2f5', minHeight:'100vh', padding:'15px', fontFamily:'sans-serif' }}>
+      <header style={{ display:'flex', justifyContent:'space-between', padding:'15px', background: zobrazeni==='ridic'?theme.bgC:'#fff', borderRadius:'15px', boxShadow:'0 2px 10px rgba(0,0,0,0.1)', alignItems:'center' }}>
+        <h2 style={{margin:0, color:zobrazeni==='ridic'?'#fff':'#333', fontSize:'1.2em'}}>RB taxi <span style={{color:theme.primary}}>Hodonín</span></h2>
         <div>
-          <button onClick={() => setZobrazeni('ridic')} style={{ padding: '8px', cursor: 'pointer' }}>Řidič</button>
-          <button onClick={prihlaseniDispecera} style={{ padding: '8px', cursor: 'pointer' }}>Dispečink</button>
+          <button onClick={()=>setZobrazeni('ridic')} style={{padding:'8px 15px', borderRadius:'8px', border:'none', cursor:'pointer', marginRight:'5px', background:zobrazeni==='ridic'?theme.primary:'#eee'}}>Řidič</button>
+          <button onClick={login} style={{padding:'8px 15px', borderRadius:'8px', border:'none', cursor:'pointer', background:zobrazeni==='dispecer'?theme.primary:'#eee'}}>Dispečink</button>
         </div>
       </header>
 
-      <main style={{ marginTop: '20px' }}>
-        {!isRidic && (
-          <div style={{ maxWidth: '1000px', margin: 'auto', backgroundColor: '#fff', padding: '20px', borderRadius: '15px' }}>
-            <h3>➕ Nová směna</h3>
-            <form onSubmit={ulozSmenu} style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-              <select value={vybraneJmenoRidice} onChange={(e) => setVybraneJmenoRidice(e.target.value)} style={{padding: '10px', borderRadius: '8px', border: '1px solid #ddd'}}>
-                {ridici.length === 0 ? <option>Načítám řidiče ({ridici.length})...</option> : 
-                 ridici.map(r => <option key={r.id} value={r.jmeno}>{r.jmeno}</option>)
-                }
-              </select>
-              <select value={vybraneAutoId} onChange={(e) => setVybraneAutoId(e.target.value)} style={{padding: '10px', borderRadius: '8px', border: '1px solid #ddd'}}>
-                {auta.map(a => <option key={a.id} value={a.id}>{a.spz}</option>)}
-              </select>
-              <input required type="datetime-local" value={zacatekSmeny} onChange={(e) => setZacatekSmeny(e.target.value)} />
-              <input required type="datetime-local" value={konecSmeny} onChange={(e) => setKonecSmeny(e.target.value)} />
-              <button type="submit" style={{ background: theme.primary, border: 'none', padding: '10px', borderRadius: '8px', fontWeight: 'bold' }}>Uložit</button>
+      {zobrazeni === 'dispecer' ? (
+        <div style={{ maxWidth:'900px', margin:'20px auto' }}>
+          <div style={{ background:'#fff', padding:'25px', borderRadius:'20px', boxShadow:'0 4px 15px rgba(0,0,0,0.05)', marginBottom:'20px' }}>
+            <h3 style={{marginTop:0}}>➕ Naplánovat směnu</h3>
+            <form onSubmit={ulozSmenu} style={{display:'flex', gap:'15px', flexWrap:'wrap', alignItems:'flex-end'}}>
+              <div style={{flex:1}}>
+                <label style={{fontSize:'0.8em', display:'block', marginBottom:'5px'}}>Řidič:</label>
+                <select value={vybraneJmeno} onChange={e=>setVybraneJmeno(e.target.value)} style={{width:'100%', padding:'12px', borderRadius:'10px', border:'1px solid #ddd'}}>
+                  {ridici.map(r => (
+                    <option key={r.id} value={r.jmeno || r.Jmeno}>
+                      {r.jmeno || r.Jmeno || `Řidič č. ${r.id}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div style={{flex:1}}>
+                <label style={{fontSize:'0.8em', display:'block', marginBottom:'5px'}}>Auto:</label>
+                <select value={vybraneAuto} onChange={e=>setVybraneAuto(e.target.value)} style={{width:'100%', padding:'12px', borderRadius:'10px', border:'1px solid #ddd'}}>
+                  {auta.map(a => <option key={a.id} value={a.id}>{a.spz}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{fontSize:'0.8em', display:'block', marginBottom:'5px'}}>Od:</label>
+                <input required type="datetime-local" value={zacatek} onChange={e=>setZacatek(e.target.value)} style={{padding:'11px', borderRadius:'10px', border:'1px solid #ddd'}} />
+              </div>
+              <div>
+                <label style={{fontSize:'0.8em', display:'block', marginBottom:'5px'}}>Do:</label>
+                <input required type="datetime-local" value={konec} onChange={e=>setKonec(e.target.value)} style={{padding:'11px', borderRadius:'10px', border:'1px solid #ddd'}} />
+              </div>
+              <button type="submit" style={{background:theme.primary, border:'none', padding:'12px 25px', borderRadius:'10px', fontWeight:'bold', cursor:'pointer', color:'#000'}}>Uložit</button>
             </form>
-            <table style={{ width: '100%', marginTop: '20px' }}>
-                <thead><tr><th>Řidič</th><th>Auto</th><th>Od</th><th>Do</th></tr></thead>
-                <tbody>{smeny.map(s => <tr key={s.id}><td>{s.jmeno_ridice}</td><td>{s.auta?.spz}</td><td>{new Date(s.zacatek).toLocaleString()}</td><td>{new Date(s.konec).toLocaleString()}</td></tr>)}</tbody>
+          </div>
+
+          <div style={{ background:'#fff', padding:'25px', borderRadius:'20px', boxShadow:'0 4px 15px rgba(0,0,0,0.05)' }}>
+            <h3 style={{marginTop:0}}>🗓️ Aktivní rozpis</h3>
+            <table style={{width:'100%', borderCollapse:'collapse'}}>
+              <thead><tr style={{textAlign:'left', borderBottom:'2px solid #eee'}}><th style={{padding:'10px'}}>Řidič</th><th style={{padding:'10px'}}>Auto</th><th style={{padding:'10px'}}>Od</th><th style={{padding:'10px'}}>Do</th></tr></thead>
+              <tbody>
+                {smeny.length === 0 ? <tr><td colSpan="4" style={{padding:'20px', textAlign:'center', color:'#999'}}>Žádné budoucí směny nejsou naplánovány.</td></tr> : 
+                  smeny.map(s => (
+                    <tr key={s.id} style={{borderBottom:'1px solid #eee'}}>
+                      <td style={{padding:'12px'}}><strong>{s.jmeno_ridice}</strong></td>
+                      <td>{s.auta?.spz}</td>
+                      <td>{new Date(s.zacatek).toLocaleString('cs-CZ', {day:'numeric', month:'numeric', hour:'2-digit', minute:'2-digit'})}</td>
+                      <td>{new Date(s.konec).toLocaleString('cs-CZ', {hour:'2-digit', minute:'2-digit'})}</td>
+                    </tr>
+                  ))
+                }
+              </tbody>
             </table>
           </div>
-        )}
-        {isRidic && (
-            <div style={{ maxWidth: '400px', margin: 'auto', color: 'white' }}>
-                <input placeholder="Tvoje jméno..." value={mojeJmeno} onChange={e => setMojeJmeno(e.target.value)} style={{width: '100%', padding: '10px', borderRadius: '8px'}} />
-                {mojeNaplanovaneSmeny.map(s => <div key={s.id} style={{background: '#333', padding: '10px', marginTop: '10px', borderRadius: '10px'}}>{s.auta?.spz} | {new Date(s.zacatek).toLocaleString()}</div>)}
+        </div>
+      ) : (
+        <div style={{ maxWidth:'450px', margin:'40px auto', textAlign:'center' }}>
+          <div style={{ background:theme.bgC, padding:'30px', borderRadius:'25px', boxShadow:'0 10px 30px rgba(0,0,0,0.3)' }}>
+            <h3 style={{color:theme.primary, marginTop:0}}>Kdo dnes jede? 🚖</h3>
+            <input 
+              placeholder="Napiš své jméno..." 
+              value={mojeJmeno} 
+              onChange={e=>setMojeJmeno(e.target.value)} 
+              style={{width:'100%', padding:'15px', borderRadius:'12px', border:'none', background:'#2c2c2c', color:'#fff', fontSize:'1.1em', boxSizing:'border-box', marginBottom:'20px'}} 
+            />
+            <div style={{textAlign:'left'}}>
+              {mojeJmeno.length > 2 && mojeSmeny.map(s => (
+                <div key={s.id} style={{background:'#2c2c2c', padding:'15px', borderRadius:'15px', marginBottom:'10px', borderLeft:'5px solid '+theme.primary}}>
+                  <div style={{fontWeight:'bold', fontSize:'1.1em'}}>{s.auta?.spz}</div>
+                  <div style={{fontSize:'0.9em', color:'#aaa'}}>{new Date(s.zacatek).toLocaleString('cs-CZ')} - {new Date(s.konec).toLocaleTimeString('cs-CZ', {hour:'2-digit', minute:'2-digit'})}</div>
+                </div>
+              ))}
+              {mojeJmeno.length > 2 && mojeSmeny.length === 0 && <div style={{color:'#666', textAlign:'center'}}>Žádná směna nenalezena.</div>}
             </div>
-        )}
-      </main>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
