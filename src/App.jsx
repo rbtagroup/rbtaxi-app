@@ -16,58 +16,64 @@ const theme = {
 
 function App() {
   const [auta, setAuta] = useState([])
-  const [ridici, setRidici] = useState([]) // Nový stát pro seznam řidičů
+  const [ridici, setRidici] = useState([])
   const [smeny, setSmeny] = useState([])
   const [zobrazeni, setZobrazeni] = useState('ridic')
   
-  const [vybraneJmenoRidice, setVybraneJmenoRidice] = useState('') // Změna na výběr z roletky
+  const [vybraneJmenoRidice, setVybraneJmenoRidice] = useState('')
   const [vybraneAutoId, setVybraneAutoId] = useState('')
   const [zacatekSmeny, setZacatekSmeny] = useState('')
   const [konecSmeny, setKonecSmeny] = useState('')
-  const [typSmeny, setTypSmeny] = useState('Denní')
   
   const [mojeJmeno, setMojeJmeno] = useState('')
 
   useEffect(() => {
-    nactiAuta()
-    nactiRidice()
-    nactiSmeny()
+    nactiVse()
   }, [])
 
-  async function nactiAuta() {
-    const { data } = await supabase.from('auta').select('*')
-    if (data) {
-      setAuta(data)
-      if (data.length > 0) setVybraneAutoId(data[0].id)
+  async function nactiVse() {
+    // 1. Načtení aut
+    const { data: autaData } = await supabase.from('auta').select('*')
+    if (autaData) {
+      setAuta(autaData)
+      if (autaData.length > 0) setVybraneAutoId(autaData[0].id)
     }
-  }
 
-  async function nactiRidice() {
-    const { data } = await supabase.from('ridici').select('*').order('jmeno')
-    if (data) {
-      setRidici(data)
-      if (data.length > 0) setVybraneJmenoRidice(data[0].jmeno)
+    // 2. Načtení řidičů
+    const { data: ridiciData } = await supabase.from('ridici').select('*').order('jmeno')
+    if (ridiciData) {
+      setRidici(ridiciData)
+      if (ridiciData.length > 0) setVybraneJmenoRidice(ridiciData[0].jmeno)
     }
+
+    // 3. Načtení směn (pouze budoucí nebo probíhající)
+    nactiSmeny()
   }
 
   async function nactiSmeny() {
-    // FILTR: Načteme pouze směny, které končí v budoucnu (teď nebo později)
     const ted = new Date().toISOString()
     const { data, error } = await supabase
       .from('smeny')
       .select('*, auta(spz, typ_vozu)')
-      .gte('konec', ted) // gte = greater than or equal (větší nebo rovno než teď)
+      .gte('konec', ted) // Schová staré směny
       .order('zacatek', { ascending: true })
 
-    if (error) console.error('Chyba:', error)
+    if (error) console.error('Chyba načítání směn:', error)
     else setSmeny(data)
   }
 
   async function ulozSmenu(e) {
     e.preventDefault()
+    if (!vybraneJmenoRidice) return alert('Vyberte prosím řidiče ze seznamu!')
+
     const { error } = await supabase.from('smeny').insert([{
-      jmeno_ridice: vybraneJmenoRidice, auto_id: vybraneAutoId, zacatek: zacatekSmeny, konec: konecSmeny, typ_smeny: typSmeny
+      jmeno_ridice: vybraneJmenoRidice, 
+      auto_id: vybraneAutoId, 
+      zacatek: zacatekSmeny, 
+      konec: konecSmeny, 
+      typ_smeny: 'Denní' // pro zjednodušení teď dáváme fixní
     }])
+    
     if (error) {
       alert('Chyba: ' + error.message)
     } else {
@@ -111,15 +117,16 @@ function App() {
         {isRidic ? (
           <div style={{ maxWidth: '400px', margin: 'auto' }}>
             <div style={{ backgroundColor: theme.bgDriverCard, padding: '20px', borderRadius: '15px', color: '#fff' }}>
-              <label style={{ fontSize: '0.8em', color: '#aaa' }}>Zadej své jméno (alespoň 3 písmena):</label>
-              <input type="text" value={mojeJmeno} onChange={(e) => setMojeJmeno(e.target.value)} style={{ width: '100%', padding: '10px', marginTop: '5px', borderRadius: '8px', border: 'none', background: '#333', color: '#fff' }} />
+              <label style={{ fontSize: '0.8em', color: '#aaa' }}>Tvoje jméno (vyberte ze seznamu nahoře):</label>
+              <input type="text" value={mojeJmeno} onChange={(e) => setMojeJmeno(e.target.value)} placeholder="Zadej jméno..." style={{ width: '100%', padding: '10px', marginTop: '5px', borderRadius: '8px', border: 'none', background: '#333', color: '#fff' }} />
             </div>
-            <h2 style={{ color: theme.primary }}>Aktuální a budoucí směny</h2>
+            <h2 style={{ color: theme.primary }}>Tvoje budoucí směny</h2>
             {mojeNaplanovaneSmeny.length === 0 ? <p style={{color: '#888'}}>Žádné nadcházející směny.</p> : 
               mojeNaplanovaneSmeny.map(smena => (
                 <div key={smena.id} style={{ backgroundColor: theme.bgDriverCard, padding: '15px', borderRadius: '15px', marginBottom: '10px', borderLeft: `5px solid ${theme.primary}`, color: '#fff' }}>
-                  <div style={{ fontWeight: 'bold' }}>{smena.typ_smeny} směna | {smena.auta?.spz}</div>
-                  <div style={{ fontSize: '0.9em', color: '#aaa' }}>{new Date(smena.zacatek).toLocaleString('cs-CZ')}</div>
+                  <div style={{ fontWeight: 'bold' }}>{smena.auta?.spz}</div>
+                  <div style={{ fontSize: '0.9em', color: '#aaa' }}>Od: {new Date(smena.zacatek).toLocaleString('cs-CZ')}</div>
+                  <div style={{ fontSize: '0.9em', color: '#aaa' }}>Do: {new Date(smena.konec).toLocaleString('cs-CZ')}</div>
                 </div>
               ))
             }
@@ -132,13 +139,15 @@ function App() {
                 <div style={{flex: '1 1 150px'}}>
                   <label style={{fontSize: '0.8em'}}>Řidič:</label>
                   <select value={vybraneJmenoRidice} onChange={(e) => setVybraneJmenoRidice(e.target.value)} style={inputStyle}>
-                    {ridici.map(r => <option key={r.id} value={r.jmeno}>{r.jmeno}</option>)}
+                    {ridici.length === 0 ? <option>Načítám řidiče...</option> : 
+                     ridici.map(r => <option key={r.id} value={r.jmeno}>{r.jmeno}</option>)
+                    }
                   </select>
                 </div>
                 <div style={{flex: '1 1 150px'}}>
                   <label style={{fontSize: '0.8em'}}>Auto:</label>
                   <select value={vybraneAutoId} onChange={(e) => setVybraneAutoId(e.target.value)} style={inputStyle}>
-                    {auta.map(auto => <option key={auto.id} value={auto.id}>{auto.spz} ({auto.typ_vozu})</option>)}
+                    {auta.map(auto => <option key={auto.id} value={auto.id}>{auto.spz}</option>)}
                   </select>
                 </div>
                 <div style={{flex: '1 1 150px'}}><label style={{fontSize: '0.8em'}}>Od:</label><input required type="datetime-local" value={zacatekSmeny} onChange={(e) => setZacatekSmeny(e.target.value)} style={inputStyle} /></div>
@@ -147,7 +156,7 @@ function App() {
               </form>
             </div>
             <div style={{ backgroundColor: '#fff', padding: '20px', borderRadius: '15px' }}>
-              <h3>Aktivní rozpis (staré směny jsou skryty)</h3>
+              <h3>Aktivní rozpis (budoucí)</h3>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ borderBottom: '2px solid #eee', textAlign: 'left' }}>
@@ -155,15 +164,17 @@ function App() {
                   </tr>
                 </thead>
                 <tbody>
-                  {smeny.map(smena => (
-                    <tr key={smena.id} style={{ borderBottom: '1px solid #eee' }}>
-                      <td style={{ padding: '10px' }}>{smena.jmeno_ridice}</td>
-                      <td style={{ padding: '10px' }}>{smena.auta?.spz}</td>
-                      <td style={{ padding: '10px' }}>{new Date(smena.zacatek).toLocaleString('cs-CZ')}</td>
-                      <td style={{ padding: '10px' }}>{new Date(smena.konec).toLocaleString('cs-CZ')}</td>
-                      <td style={{ padding: '10px' }}><button onClick={() => smazSmenu(smena.id)} style={{ color: 'red', border: 'none', background: 'none', cursor: 'pointer' }}>Smazat</button></td>
-                    </tr>
-                  ))}
+                  {smeny.length === 0 ? <tr><td colSpan="5" style={{padding: '20px', textAlign: 'center', color: '#999'}}>Žádné aktivní směny. Naplánujte novou s datem v budoucnu.</td></tr> : 
+                    smeny.map(smena => (
+                      <tr key={smena.id} style={{ borderBottom: '1px solid #eee' }}>
+                        <td style={{ padding: '10px' }}>{smena.jmeno_ridice}</td>
+                        <td style={{ padding: '10px' }}>{smena.auta?.spz}</td>
+                        <td style={{ padding: '10px' }}>{new Date(smena.zacatek).toLocaleString('cs-CZ')}</td>
+                        <td style={{ padding: '10px' }}>{new Date(smena.konec).toLocaleString('cs-CZ')}</td>
+                        <td style={{ padding: '10px' }}><button onClick={() => smazSmenu(smena.id)} style={{ color: 'red', border: 'none', background: 'none', cursor: 'pointer' }}>Smazat</button></td>
+                      </tr>
+                    ))
+                  }
                 </tbody>
               </table>
             </div>
