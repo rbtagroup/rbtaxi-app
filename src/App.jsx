@@ -4,16 +4,14 @@ import { supabase } from './supabaseClient'
 function App() {
   const [auta, setAuta] = useState([])
   const [smeny, setSmeny] = useState([])
-  const [zobrazeni, setZobrazeni] = useState('ridic') // Změnil jsem výchozí zobrazení na řidiče
+  const [zobrazeni, setZobrazeni] = useState('ridic')
 
-  // Proměnné pro dispečera
   const [jmenoRidice, setJmenoRidice] = useState('')
   const [vybraneAutoId, setVybraneAutoId] = useState('')
   const [zacatekSmeny, setZacatekSmeny] = useState('')
   const [konecSmeny, setKonecSmeny] = useState('')
   const [typSmeny, setTypSmeny] = useState('Denní')
 
-  // Proměnná pro simulaci přihlášení řidiče
   const [mojeJmeno, setMojeJmeno] = useState('')
 
   useEffect(() => {
@@ -30,7 +28,6 @@ function App() {
   }
 
   async function nactiSmeny() {
-    // Načteme směny a rovnou je seřadíme od nejbližší po nejvzdálenější
     const { data, error } = await supabase.from('smeny').select('*, auta(spz, typ_vozu)').order('zacatek', { ascending: true })
     if (error) console.error('Chyba:', error)
     else setSmeny(data)
@@ -50,7 +47,16 @@ function App() {
     }
   }
 
-  // Filtrace směn pro konkrétního řidiče
+  // NOVÁ FUNKCE PRO ZABEZPEČENÍ
+  function prihlaseniDispecera() {
+    const heslo = window.prompt('Zadejte heslo pro přístup do Dispečinku:')
+    if (heslo === 'taxi123') {  // Zde si můžete heslo změnit na jakékoliv jiné
+      setZobrazeni('dispecer')
+    } else if (heslo !== null) {
+      alert('Nesprávné heslo! Přístup odepřen.')
+    }
+  }
+
   const mojeNaplanovaneSmeny = smeny.filter(smena => 
     smena.jmeno_ridice.toLowerCase().includes(mojeJmeno.toLowerCase()) && mojeJmeno.length > 2
   )
@@ -58,30 +64,22 @@ function App() {
   return (
     <div style={{ backgroundColor: zobrazeni === 'ridic' ? '#121212' : '#f5f5f5', minHeight: '100vh', padding: '20px', fontFamily: 'Arial, sans-serif', transition: 'background 0.3s' }}>
       
-      {/* HLAVNÍ MENU */}
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: zobrazeni === 'ridic' ? '#1e1e1e' : '#fff', padding: '10px 20px', borderRadius: '10px', boxShadow: '0 2px 5px rgba(0,0,0,0.1)' }}>
         <h1 style={{ margin: 0, color: zobrazeni === 'ridic' ? '#fff' : '#333', fontSize: '1.5em' }}>RB taxi <span style={{ color: '#f39c12' }}>Hodonín</span></h1>
         <div>
           <button onClick={() => setZobrazeni('ridic')} style={{...btnStyle, backgroundColor: zobrazeni === 'ridic' ? '#f39c12' : '#fff', color: zobrazeni === 'ridic' ? '#fff' : '#333'}}>Řidič</button>
-          <button onClick={() => setZobrazeni('dispecer')} style={{...btnStyle, backgroundColor: zobrazeni === 'dispecer' ? '#f39c12' : '#fff', color: zobrazeni === 'dispecer' ? '#fff' : '#333'}}>Dispečink</button>
+          {/* ZMĚNĚNÉ TLAČÍTKO DISPEČINKU */}
+          <button onClick={prihlaseniDispecera} style={{...btnStyle, backgroundColor: zobrazeni === 'dispecer' ? '#f39c12' : '#fff', color: zobrazeni === 'dispecer' ? '#fff' : '#333'}}>Dispečink</button>
         </div>
       </header>
 
       <main style={{ marginTop: '20px' }}>
         {zobrazeni === 'ridic' ? (
           
-          /* POHLED ŘIDIČE (Tmavý režim) */
           <div style={{ maxWidth: '400px', margin: 'auto', color: 'white' }}>
-            
             <div style={{ backgroundColor: '#1e1e1e', padding: '15px', borderRadius: '10px', marginBottom: '20px' }}>
               <label style={{ display: 'block', marginBottom: '5px', color: '#aaa', fontSize: '0.9em' }}>Zadej své jméno (pro zobrazení směn):</label>
-              <input 
-                type="text" 
-                value={mojeJmeno} 
-                onChange={(e) => setMojeJmeno(e.target.value)} 
-                placeholder="Např. Karel Novák" 
-                style={{ width: '100%', padding: '10px', borderRadius: '5px', border: '1px solid #333', backgroundColor: '#2a2a2a', color: 'white', boxSizing: 'border-box' }}
-              />
+              <input type="text" value={mojeJmeno} onChange={(e) => setMojeJmeno(e.target.value)} placeholder="Např. Karel Novák" style={{ width: '100%', padding: '10px', borderRadius: '5px', border: '1px solid #333', backgroundColor: '#2a2a2a', color: 'white', boxSizing: 'border-box' }} />
             </div>
 
             <h2 style={{ color: '#f39c12', marginBottom: '15px' }}>Tvoje příští směny</h2>
@@ -94,9 +92,7 @@ function App() {
               mojeNaplanovaneSmeny.map((smena, index) => (
                 <div key={smena.id} style={{ backgroundColor: '#1e1e1e', padding: '20px', borderRadius: '15px', marginBottom: '15px', borderLeft: index === 0 ? '5px solid #2ecc71' : '5px solid #555' }}>
                   {index === 0 && <div style={{ color: '#2ecc71', fontWeight: 'bold', marginBottom: '10px', fontSize: '0.9em' }}>NEJBLIŽŠÍ SMĚNA</div>}
-                  
                   <h3 style={{ margin: '0 0 10px 0', fontSize: '1.2em' }}>{smena.typ_smeny} směna</h3>
-                  
                   <div style={{ marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <span>⏰</span>
                     <div>
@@ -104,7 +100,6 @@ function App() {
                       <div style={{ fontSize: '0.9em', color: '#aaa' }}>Konec: {new Date(smena.konec).toLocaleString('cs-CZ')}</div>
                     </div>
                   </div>
-
                   <div style={{ backgroundColor: '#2a2a2a', padding: '10px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <span>🚖</span>
                     <div>
@@ -118,9 +113,7 @@ function App() {
           </div>
 
         ) : (
-          /* POHLED DISPEČERA (Zůstává stejný) */
           <div>
-            {/* FORMULÁŘ */}
             <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '10px', marginBottom: '20px', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}>
               <h2>➕ Naplánovat novou směnu</h2>
               <form onSubmit={ulozSmenu} style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
@@ -133,17 +126,11 @@ function App() {
                 </div>
                 <div><label style={labelStyle}>Začátek</label><input required value={zacatekSmeny} onChange={(e) => setZacatekSmeny(e.target.value)} type="datetime-local" style={inputStyle} /></div>
                 <div><label style={labelStyle}>Konec</label><input required value={konecSmeny} onChange={(e) => setKonecSmeny(e.target.value)} type="datetime-local" style={inputStyle} /></div>
-                <div>
-                  <label style={labelStyle}>Typ</label>
-                  <select value={typSmeny} onChange={(e) => setTypSmeny(e.target.value)} style={inputStyle}>
-                    <option value="Denní">Denní</option><option value="Noční">Noční</option>
-                  </select>
-                </div>
+                <div><label style={labelStyle}>Typ</label><select value={typSmeny} onChange={(e) => setTypSmeny(e.target.value)} style={inputStyle}><option value="Denní">Denní</option><option value="Noční">Noční</option></select></div>
                 <button type="submit" style={{ ...btnStyle, backgroundColor: '#f39c12', color: 'white', border: 'none', padding: '10px 20px', fontWeight: 'bold' }}>Uložit směnu</button>
               </form>
             </div>
 
-            {/* TABULKA */}
             <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '10px', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}>
               <h2>Aktuální rozpis směn</h2>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
