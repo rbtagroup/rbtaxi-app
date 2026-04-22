@@ -47,10 +47,24 @@ function App() {
     }
   }
 
-  // NOVÁ FUNKCE PRO ZABEZPEČENÍ
+  // NOVÁ FUNKCE PRO SMAZÁNÍ SMĚNY
+  async function smazSmenu(id) {
+    // Okno pro potvrzení, abychom nesmazali něco omylem
+    if (window.confirm('Opravdu chcete tuto směnu nenávratně smazat?')) {
+      const { error } = await supabase.from('smeny').delete().eq('id', id)
+      
+      if (error) {
+        alert('Chyba při mazání: ' + error.message)
+      } else {
+        // Po úspěšném smazání v databázi rovnou obnovíme tabulku v aplikaci
+        nactiSmeny() 
+      }
+    }
+  }
+
   function prihlaseniDispecera() {
     const heslo = window.prompt('Zadejte heslo pro přístup do Dispečinku:')
-    if (heslo === 'taxi123') {  // Zde si můžete heslo změnit na jakékoliv jiné
+    if (heslo === 'taxi123') {
       setZobrazeni('dispecer')
     } else if (heslo !== null) {
       alert('Nesprávné heslo! Přístup odepřen.')
@@ -68,7 +82,6 @@ function App() {
         <h1 style={{ margin: 0, color: zobrazeni === 'ridic' ? '#fff' : '#333', fontSize: '1.5em' }}>RB taxi <span style={{ color: '#f39c12' }}>Hodonín</span></h1>
         <div>
           <button onClick={() => setZobrazeni('ridic')} style={{...btnStyle, backgroundColor: zobrazeni === 'ridic' ? '#f39c12' : '#fff', color: zobrazeni === 'ridic' ? '#fff' : '#333'}}>Řidič</button>
-          {/* ZMĚNĚNÉ TLAČÍTKO DISPEČINKU */}
           <button onClick={prihlaseniDispecera} style={{...btnStyle, backgroundColor: zobrazeni === 'dispecer' ? '#f39c12' : '#fff', color: zobrazeni === 'dispecer' ? '#fff' : '#333'}}>Dispečink</button>
         </div>
       </header>
@@ -136,28 +149,4 @@ function App() {
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ borderBottom: '2px solid #eee', backgroundColor: '#f9f9f9' }}>
-                    <th style={{ textAlign: 'left', padding: '10px' }}>Řidič</th><th style={{ textAlign: 'left', padding: '10px' }}>Auto (SPZ)</th><th style={{ textAlign: 'left', padding: '10px' }}>Začátek</th><th style={{ textAlign: 'left', padding: '10px' }}>Konec</th><th style={{ textAlign: 'left', padding: '10px' }}>Typ</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {smeny.map(smena => (
-                    <tr key={smena.id} style={{ borderBottom: '1px solid #eee' }}>
-                      <td style={{ padding: '10px' }}><strong>{smena.jmeno_ridice}</strong></td><td style={{ padding: '10px' }}>{smena.auta?.spz}</td><td style={{ padding: '10px' }}>{new Date(smena.zacatek).toLocaleString('cs-CZ')}</td><td style={{ padding: '10px' }}>{new Date(smena.konec).toLocaleString('cs-CZ')}</td>
-                      <td style={{ padding: '10px' }}><span style={{ backgroundColor: smena.typ_smeny === 'Denní' ? '#ffeaa7' : '#74b9ff', padding: '3px 8px', borderRadius: '12px', fontSize: '0.9em' }}>{smena.typ_smeny}</span></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-      </main>
-    </div>
-  )
-}
-
-const btnStyle = { padding: '8px 15px', marginLeft: '10px', cursor: 'pointer', borderRadius: '5px', border: '1px solid #ccc', fontWeight: 'bold' }
-const inputStyle = { padding: '8px', borderRadius: '5px', border: '1px solid #ccc', width: '100%', boxSizing: 'border-box' }
-const labelStyle = { display: 'block', marginBottom: '5px', fontSize: '0.9em', color: '#555', fontWeight: 'bold' }
-
-export default App
+                    <th style={{ textAlign: 'left', padding: '10px' }}></th>
