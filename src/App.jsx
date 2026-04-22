@@ -47,18 +47,11 @@ function App() {
     }
   }
 
-  // NOVÁ FUNKCE PRO SMAZÁNÍ SMĚNY
   async function smazSmenu(id) {
-    // Okno pro potvrzení, abychom nesmazali něco omylem
     if (window.confirm('Opravdu chcete tuto směnu nenávratně smazat?')) {
       const { error } = await supabase.from('smeny').delete().eq('id', id)
-      
-      if (error) {
-        alert('Chyba při mazání: ' + error.message)
-      } else {
-        // Po úspěšném smazání v databázi rovnou obnovíme tabulku v aplikaci
-        nactiSmeny() 
-      }
+      if (error) alert('Chyba při mazání: ' + error.message)
+      else nactiSmeny()
     }
   }
 
@@ -67,7 +60,7 @@ function App() {
     if (heslo === 'taxi123') {
       setZobrazeni('dispecer')
     } else if (heslo !== null) {
-      alert('Nesprávné heslo! Přístup odepřen.')
+      alert('Nesprávné heslo!')
     }
   }
 
@@ -76,77 +69,75 @@ function App() {
   )
 
   return (
-    <div style={{ backgroundColor: zobrazeni === 'ridic' ? '#121212' : '#f5f5f5', minHeight: '100vh', padding: '20px', fontFamily: 'Arial, sans-serif', transition: 'background 0.3s' }}>
+    <div style={{ backgroundColor: zobrazeni === 'ridic' ? '#121212' : '#f5f5f5', minHeight: '100vh', padding: '20px', fontFamily: 'Arial, sans-serif' }}>
       
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: zobrazeni === 'ridic' ? '#1e1e1e' : '#fff', padding: '10px 20px', borderRadius: '10px', boxShadow: '0 2px 5px rgba(0,0,0,0.1)' }}>
-        <h1 style={{ margin: 0, color: zobrazeni === 'ridic' ? '#fff' : '#333', fontSize: '1.5em' }}>RB taxi <span style={{ color: '#f39c12' }}>Hodonín</span></h1>
+        <h1 style={{ margin: 0, color: zobrazeni === 'ridic' ? '#fff' : '#333', fontSize: '1.2em' }}>RB taxi Hodonín</h1>
         <div>
-          <button onClick={() => setZobrazeni('ridic')} style={{...btnStyle, backgroundColor: zobrazeni === 'ridic' ? '#f39c12' : '#fff', color: zobrazeni === 'ridic' ? '#fff' : '#333'}}>Řidič</button>
-          <button onClick={prihlaseniDispecera} style={{...btnStyle, backgroundColor: zobrazeni === 'dispecer' ? '#f39c12' : '#fff', color: zobrazeni === 'dispecer' ? '#fff' : '#333'}}>Dispečink</button>
+          <button onClick={() => setZobrazeni('ridic')} style={btnStyle}>Řidič</button>
+          <button onClick={prihlaseniDispecera} style={btnStyle}>Dispečink</button>
         </div>
       </header>
 
       <main style={{ marginTop: '20px' }}>
         {zobrazeni === 'ridic' ? (
-          
           <div style={{ maxWidth: '400px', margin: 'auto', color: 'white' }}>
-            <div style={{ backgroundColor: '#1e1e1e', padding: '15px', borderRadius: '10px', marginBottom: '20px' }}>
-              <label style={{ display: 'block', marginBottom: '5px', color: '#aaa', fontSize: '0.9em' }}>Zadej své jméno (pro zobrazení směn):</label>
-              <input type="text" value={mojeJmeno} onChange={(e) => setMojeJmeno(e.target.value)} placeholder="Např. Karel Novák" style={{ width: '100%', padding: '10px', borderRadius: '5px', border: '1px solid #333', backgroundColor: '#2a2a2a', color: 'white', boxSizing: 'border-box' }} />
-            </div>
-
-            <h2 style={{ color: '#f39c12', marginBottom: '15px' }}>Tvoje příští směny</h2>
-
-            {mojeJmeno.length <= 2 ? (
-              <p style={{ color: '#888', textAlign: 'center' }}>Napiš své jméno nahoru, abychom ti mohli ukázat tvůj rozpis.</p>
-            ) : mojeNaplanovaneSmeny.length === 0 ? (
-              <p style={{ color: '#888', textAlign: 'center' }}>Aktuálně nemáš naplánované žádné směny.</p>
-            ) : (
-              mojeNaplanovaneSmeny.map((smena, index) => (
-                <div key={smena.id} style={{ backgroundColor: '#1e1e1e', padding: '20px', borderRadius: '15px', marginBottom: '15px', borderLeft: index === 0 ? '5px solid #2ecc71' : '5px solid #555' }}>
-                  {index === 0 && <div style={{ color: '#2ecc71', fontWeight: 'bold', marginBottom: '10px', fontSize: '0.9em' }}>NEJBLIŽŠÍ SMĚNA</div>}
-                  <h3 style={{ margin: '0 0 10px 0', fontSize: '1.2em' }}>{smena.typ_smeny} směna</h3>
-                  <div style={{ marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span>⏰</span>
-                    <div>
-                      <div style={{ fontSize: '0.9em', color: '#aaa' }}>Začátek: {new Date(smena.zacatek).toLocaleString('cs-CZ')}</div>
-                      <div style={{ fontSize: '0.9em', color: '#aaa' }}>Konec: {new Date(smena.konec).toLocaleString('cs-CZ')}</div>
-                    </div>
-                  </div>
-                  <div style={{ backgroundColor: '#2a2a2a', padding: '10px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span>🚖</span>
-                    <div>
-                      <div style={{ fontWeight: 'bold' }}>{smena.auta?.spz || 'Neznámé auto'}</div>
-                      <div style={{ fontSize: '0.8em', color: '#aaa' }}>{smena.auta?.typ_vozu || ''}</div>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
+            <input type="text" value={mojeJmeno} onChange={(e) => setMojeJmeno(e.target.value)} placeholder="Zadej své jméno..." style={inputStyle} />
+            <h2 style={{ color: '#f39c12' }}>Tvoje směny</h2>
+            {mojeNaplanovaneSmeny.map((smena) => (
+              <div key={smena.id} style={{ backgroundColor: '#1e1e1e', padding: '15px', borderRadius: '10px', marginBottom: '10px', borderLeft: '5px solid #f39c12' }}>
+                <strong>{smena.typ_smeny}</strong> | {smena.auta?.spz}<br/>
+                <small>{new Date(smena.zacatek).toLocaleString('cs-CZ')}</small>
+              </div>
+            ))}
           </div>
-
         ) : (
-          <div>
-            <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '10px', marginBottom: '20px', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}>
-              <h2>➕ Naplánovat novou směnu</h2>
-              <form onSubmit={ulozSmenu} style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
-                <div><label style={labelStyle}>Jméno řidiče</label><input required value={jmenoRidice} onChange={(e) => setJmenoRidice(e.target.value)} type="text" style={inputStyle} /></div>
-                <div>
-                  <label style={labelStyle}>Auto</label>
-                  <select value={vybraneAutoId} onChange={(e) => setVybraneAutoId(e.target.value)} style={inputStyle}>
-                    {auta.map(auto => <option key={auto.id} value={auto.id}>{auto.typ_vozu} ({auto.spz})</option>)}
-                  </select>
-                </div>
-                <div><label style={labelStyle}>Začátek</label><input required value={zacatekSmeny} onChange={(e) => setZacatekSmeny(e.target.value)} type="datetime-local" style={inputStyle} /></div>
-                <div><label style={labelStyle}>Konec</label><input required value={konecSmeny} onChange={(e) => setKonecSmeny(e.target.value)} type="datetime-local" style={inputStyle} /></div>
-                <div><label style={labelStyle}>Typ</label><select value={typSmeny} onChange={(e) => setTypSmeny(e.target.value)} style={inputStyle}><option value="Denní">Denní</option><option value="Noční">Noční</option></select></div>
-                <button type="submit" style={{ ...btnStyle, backgroundColor: '#f39c12', color: 'white', border: 'none', padding: '10px 20px', fontWeight: 'bold' }}>Uložit směnu</button>
+          <div style={{ maxWidth: '900px', margin: 'auto' }}>
+            <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '10px', marginBottom: '20px' }}>
+              <h3>Nová směna</h3>
+              <form onSubmit={ulozSmenu} style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                <input required placeholder="Jméno" value={jmenoRidice} onChange={(e) => setJmenoRidice(e.target.value)} style={inputStyle} />
+                <select value={vybraneAutoId} onChange={(e) => setVybraneAutoId(e.target.value)} style={inputStyle}>
+                  {auta.map(auto => <option key={auto.id} value={auto.id}>{auto.spz}</option>)}
+                </select>
+                <input required type="datetime-local" value={zacatekSmeny} onChange={(e) => setZacatekSmeny(e.target.value)} style={inputStyle} />
+                <input required type="datetime-local" value={konecSmeny} onChange={(e) => setKonecSmeny(e.target.value)} style={inputStyle} />
+                <button type="submit" style={{ backgroundColor: '#f39c12', color: 'white', border: 'none', padding: '10px', borderRadius: '5px' }}>Uložit</button>
               </form>
             </div>
 
-            <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '10px', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}>
-              <h2>Aktuální rozpis směn</h2>
+            <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '10px' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
-                  <tr style={{ borderBottom: '2px solid #eee', backgroundColor: '#f9f9f9' }}>
-                    <th style={{ textAlign: 'left', padding: '10px' }}></th>
+                  <tr style={{ borderBottom: '2px solid #eee' }}>
+                    <th style={thStyle}>Řidič</th><th style={thStyle}>Auto</th><th style={thStyle}>Od</th><th style={thStyle}>Do</th><th style={thStyle}>Akce</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {smeny.map(smena => (
+                    <tr key={smena.id} style={{ borderBottom: '1px solid #eee' }}>
+                      <td style={tdStyle}>{smena.jmeno_ridice}</td>
+                      <td style={tdStyle}>{smena.auta?.spz}</td>
+                      <td style={tdStyle}>{new Date(smena.zacatek).toLocaleString('cs-CZ')}</td>
+                      <td style={tdStyle}>{new Date(smena.konec).toLocaleString('cs-CZ')}</td>
+                      <td style={tdStyle}>
+                        <button onClick={() => smazSmenu(smena.id)} style={{ backgroundColor: '#ff4d4d', color: 'white', border: 'none', padding: '5px', borderRadius: '3px' }}>Smazat</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </main>
+    </div>
+  )
+}
+
+const btnStyle = { padding: '8px 12px', marginLeft: '5px', cursor: 'pointer' }
+const inputStyle = { padding: '8px', borderRadius: '5px', border: '1px solid #ccc' }
+const thStyle = { textAlign: 'left', padding: '10px' }
+const tdStyle = { padding: '10px' }
+
+export default App
